@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Chamber {
+  HOUSE
+  SENATE
+}
+
+enum Party {
+  DEMOCRAT
+  REPUBLICAN
+  INDEPENDENT
+  OTHER
+}
+
+enum TradeType {
+  BUY
+  SELL
+  EXCHANGE
+  OTHER
+}
+
+enum DisclosureSource {
+  HOUSE
+  SENATE
+  STOCK_ACT_API
+  MANUAL
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime    @default(now())
+  watchlist    Watchlist[]
+}
+
+model Politician {
+  id          String            @id @default(cuid())
+  name        String
+  party       Party
+  chamber     Chamber
+  state       String
+  committees  String[]
+  createdAt   DateTime          @default(now())
+  disclosures TradeDisclosure[]
+}
+
+model Stock {
+  id             String              @id @default(cuid())
+  ticker         String              @unique
+  companyName    String
+  sector         String
+  industry       String
+  marketCap      Decimal?
+  fundamentals   StockFundamentals[]
+  prices         StockPrice[]
+  disclosures    TradeDisclosure[]
+  scores         RankingScore[]
+  catalysts      Catalyst[]
+  watchlists     Watchlist[]
+  manualScores   ManualScoreAdjustment[]
+}
+
+model TradeDisclosure {
+  id                    String           @id @default(cuid())
+  politicianId          String
+  stockId               String
+  transactionDate       DateTime
+  disclosureDate        DateTime
+  ticker                String
+  companyName           String
+  tradeType             TradeType
+  transactionSizeRange  String
+  estimatedValue        Decimal
+  filingUrl             String
+  source                DisclosureSource
+  rawPayload            Json?
+  createdAt             DateTime         @default(now())
+  politician            Politician       @relation(fields: [politicianId], references: [id])
+  stock                 Stock            @relation(fields: [stockId], references: [id])
+
+  @@index([ticker])
+  @@index([transactionDate])
+  @@index([disclosureDate])
+}
+
+model StockFundamentals {
+  id                    String   @id @default(cuid())
+  stockId               String
+  fiscalYear            Int
+  revenueGrowthYoY      Float
+  revenueCagr3Y         Float?
+  netIncomeGrowthYoY    Float
+  epsGrowthYoY          Float?
+  operatingIncomeGrowth Float?
+  grossMargin           Float
+  operatingMargin       Float
+  netMargin             Float
+  debtToEquity          Float?
+  netDebt               Decimal?
+  freeCashFlow          Decimal?
+  operatingCashFlow     Decimal?
+  interestCoverage      Float?
+  roic                  Float?
+  buybackYield          Float?
+  dilutionRate          Float?
+  priceToSales          Float?
+  forwardPriceToSales   Float?
+  priceToEarnings       Float?
+  forwardPriceToEarnings Float?
+  evToEbitda            Float?
+  pegRatio              Float?
+  rdToRevenue           Float?
+  createdAt             DateTime @default(now())
+  stock                 Stock    @relation(fields: [stockId], references: [id])
+
+  @@unique([stockId, fiscalYear])
+}
+
+model StockPrice {
+  id        String   @id @default(cuid())
+  stockId   String
+  date      DateTime
+  close     Decimal
+  volume    BigInt?
+  stock     Stock    @relation(fields: [stockId], references: [id])
+
+  @@unique([stockId, date])
+}
+
+model RankingScore {
+  id                         String   @id @default(cuid())
+  stockId                    String
+  asOf                       DateTime @default(now())
+  politicianActivityScore    Float
+  fundamentalGrowthScore     Float
+  profitabilityMarginScore   Float
+  valuationScore             Float
+  moatScore                  Float
+  catalystMacroScore         Float
+  finalScore                 Float
+  breakdown                  Json
+  stock                      Stock    @relation(fields: [stockId], references: [id])
+
+  @@index([finalScore])
+  @@index([asOf])
+}
+
+model Catalyst {
+  id          String   @id @default(cuid())
+  stockId     String
+  title       String
+  category    String
+  expectedAt  DateTime?
+  score       Float
+  notes       String?
+  sourceUrl   String?
+  createdAt   DateTime @default(now())
+  stock       Stock    @relation(fields: [stockId], references: [id])
+}
+
+model MacroIndicator {
+  id        String   @id @default(cuid())
+  sector    String
+  label     String
+  value     Float
+  score     Float
+  asOf      DateTime @default(now())
+  notes     String?
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  stockId   String
+  alertMinScore Float @default(75)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  stock     Stock    @relation(fields: [stockId], references: [id])
+
+  @@unique([userId, stockId])
+}
+
+model ManualScoreAdjustment {
+  id                String   @id @default(cuid())
+  stockId           String
+  moatScore         Float?
+  managementScore   Float?
+  catalystScore     Float?
+  macroScore        Float?
+  notes             String?
+  updatedBy         String?
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  stock             Stock    @relation(fields: [stockId], references: [id])
+}
