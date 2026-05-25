@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const [rankings, trades, watchlist, latestTrade] = await Promise.all([
     prisma.rankingScore.findMany({
+      where: { stock: { disclosures: { some: {} } } },
       orderBy: [{ finalScore: "desc" }, { asOf: "desc" }],
       distinct: ["stockId"],
       include: { stock: { include: { catalysts: true } } },

@@ -18,6 +18,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
   const [chamber, setChamber] = useState("ALL");
   const [sector, setSector] = useState("ALL");
   const [tradeType, setTradeType] = useState("ALL");
+  const [refreshStatus, setRefreshStatus] = useState("");
 
   useEffect(() => {
     async function loadDashboard() {
@@ -58,8 +59,16 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
   async function refresh() {
     const response = await fetch("/api/refresh", { method: "POST" });
     if (response.ok) {
+      const result = await response.json();
+      if (result.error) {
+        setRefreshStatus(`${result.error} Run npm.cmd run refresh:politician-trades after enabling access.`);
+      } else {
+        setRefreshStatus(`Politician trades refreshed. Fetched ${result.disclosureCount ?? 0}, created ${result.created ?? 0}, updated ${result.updated ?? 0}.`);
+      }
       const next = await fetch("/api/dashboard");
       setData(await next.json());
+    } else {
+      setRefreshStatus("Unable to refresh politician trades. Run npm.cmd run refresh:politician-trades in PowerShell.");
     }
   }
 
@@ -77,7 +86,14 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           <span className="font-semibold">
             {data.lastPoliticianDataUpdated ? new Date(data.lastPoliticianDataUpdated).toLocaleString() : "No live congressional trades loaded yet"}
           </span>
+          {refreshStatus ? <div className="mt-2 font-semibold text-amber-700">{refreshStatus}</div> : null}
         </section>
+
+        {!data.trades.length ? (
+          <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950">
+            No live politician trading data loaded yet. No politician trade data available yet. Run refresh:politician-trades.
+          </section>
+        ) : null}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric label="Tracked tickers" value={data.rankings.length.toString()} />
@@ -94,7 +110,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             </Link>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            {data.rankings.slice(0, 5).map((ranking, index) => {
+            {data.rankings.length ? data.rankings.slice(0, 5).map((ranking, index) => {
               const rating = getRating(ranking.finalScore);
               return (
                 <article key={ranking.id} className="rounded-lg border border-line bg-white p-4 shadow-panel">
@@ -121,7 +137,11 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
                   </div>
                 </article>
               );
-            })}
+            }) : (
+              <div className="rounded-lg border border-line bg-white p-5 text-sm font-semibold text-slate-600 shadow-panel lg:col-span-2">
+                No politician trade data available yet. Run refresh:politician-trades.
+              </div>
+            )}
           </div>
         </section>
 

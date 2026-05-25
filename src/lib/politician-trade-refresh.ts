@@ -14,7 +14,13 @@ export async function refreshPoliticianTrades(symbols = defaultSymbols) {
     trades = await fetchRecentCongressionalTrades(symbols);
   } catch (error) {
     console.error("[politician-refresh] Finnhub congressional fetch failed", error);
-    return { fetched: 0, created: 0, updated: 0, error: "Finnhub congressional data unavailable", refreshedAt: new Date() };
+    return {
+      fetched: 0,
+      created: 0,
+      updated: 0,
+      error: "Finnhub congressional trading endpoint unavailable on this API plan.",
+      refreshedAt: new Date()
+    };
   }
 
   let created = 0;
