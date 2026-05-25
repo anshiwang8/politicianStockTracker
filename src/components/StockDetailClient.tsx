@@ -215,7 +215,7 @@ export function StockDetailClient({ detail }: { detail: StockDetail }) {
               </tbody>
             </table>
           ) : (
-            <EmptyState title="No recent politician trades found for this ticker." body="Live stock data is still available for searched tickers without political disclosure records." />
+            <EmptyState title="No recent politician trades found." body="Live stock data is still available for tickers without congressional disclosure records." />
           )}
         </div>
       </section>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const [rankings, trades, watchlist] = await Promise.all([
+  const [rankings, trades, watchlist, latestTrade] = await Promise.all([
     prisma.rankingScore.findMany({
       orderBy: [{ finalScore: "desc" }, { asOf: "desc" }],
       distinct: ["stockId"],
@@ -14,13 +14,15 @@ export async function GET() {
       include: { politician: true, stock: true },
       take: 30
     }),
-    prisma.watchlist.findMany({ include: { stock: true }, take: 20 })
+    prisma.watchlist.findMany({ include: { stock: true }, take: 20 }),
+    prisma.tradeDisclosure.findFirst({ orderBy: { updatedAt: "desc" }, select: { updatedAt: true } })
   ]);
 
   return NextResponse.json({
     rankings,
     trades,
     watchlist,
-    lastUpdated: rankings[0]?.asOf ?? new Date()
+    lastUpdated: rankings[0]?.asOf ?? new Date(),
+    lastPoliticianDataUpdated: latestTrade?.updatedAt ?? null
   });
 }

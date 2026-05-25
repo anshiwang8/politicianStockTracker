@@ -71,6 +71,7 @@ model Stock {
 
 model TradeDisclosure {
   id                    String           @id @default(cuid())
+  externalId            String?          @unique
   politicianId          String
   stockId               String
   transactionDate       DateTime
@@ -80,16 +81,20 @@ model TradeDisclosure {
   tradeType             TradeType
   transactionSizeRange  String
   estimatedValue        Decimal
+  estimatedValueLow     Decimal?
+  estimatedValueHigh    Decimal?
   filingUrl             String
   source                DisclosureSource
   rawPayload            Json?
   createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @default(now()) @updatedAt
   politician            Politician       @relation(fields: [politicianId], references: [id])
   stock                 Stock            @relation(fields: [stockId], references: [id])
 
   @@index([ticker])
   @@index([transactionDate])
   @@index([disclosureDate])
+  @@index([updatedAt])
 }
 
 model StockFundamentals {

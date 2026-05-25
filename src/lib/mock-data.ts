@@ -1,4 +1,4 @@
-import type { Chamber, DisclosureSource, Party, TradeType } from "@prisma/client";
+import type { Chamber, Party } from "@prisma/client";
 
 export const mockPoliticians = [
   { name: "Alexandra Reyes", party: "DEMOCRAT" as Party, chamber: "HOUSE" as Chamber, state: "CA", committees: ["Energy and Commerce", "Science Space and Technology"] },
@@ -76,38 +76,6 @@ export const mockFundamentals = {
   LMT: { ...baseFundamentals, revenueGrowthYoY: 0.05, revenueCagr3Y: 0.04, netIncomeGrowthYoY: 0.06, grossMargin: 0.13, operatingMargin: 0.11, netMargin: 0.09, debtToEquity: 1.9, netDebt: 17000000000, freeCashFlow: 6200000000, interestCoverage: 9, roic: 0.18, priceToSales: 1.7, forwardPriceToSales: 1.6, priceToEarnings: 18, forwardPriceToEarnings: 17, evToEbitda: 13, pegRatio: 2.1, rdToRevenue: 0.03 },
   TSLA: { ...baseFundamentals, revenueGrowthYoY: 0.04, revenueCagr3Y: 0.24, netIncomeGrowthYoY: -0.22, epsGrowthYoY: -0.2, operatingIncomeGrowth: -0.18, grossMargin: 0.18, operatingMargin: 0.07, netMargin: 0.08, debtToEquity: 0.12, netDebt: -14000000000, freeCashFlow: 4400000000, interestCoverage: 20, roic: 0.09, priceToSales: 7.8, forwardPriceToSales: 6.4, priceToEarnings: 75, forwardPriceToEarnings: 48, evToEbitda: 41, pegRatio: 2.8, rdToRevenue: 0.05 }
 };
-
-const tradeSizes = [
-  [7500, "$1,001 - $15,000"],
-  [32500, "$15,001 - $50,000"],
-  [75000, "$50,001 - $100,000"],
-  [175000, "$100,001 - $250,000"],
-  [375000, "$250,001 - $500,000"],
-  [750000, "$500,001 - $1,000,000"]
-] as const;
-
-const tradeTickers = mockStocks.map((stock) => stock.ticker);
-
-export const mockTrades = Array.from({ length: 84 }, (_, index) => {
-  const politician = mockPoliticians[index % mockPoliticians.length];
-  const ticker = tradeTickers[(index * 5 + Math.floor(index / 3)) % tradeTickers.length];
-  const isSell = index % 6 === 0 || index % 11 === 0;
-  const [estimatedValue, transactionSizeRange] = tradeSizes[(index * 7 + 2) % tradeSizes.length];
-  const transactionDaysAgo = 2 + ((index * 3) % 58);
-  const disclosureDaysAgo = Math.max(1, transactionDaysAgo - (1 + (index % 8)));
-  const source = politician.chamber === "SENATE" ? "SENATE" : "HOUSE";
-
-  return [
-    politician.name,
-    ticker,
-    (isSell ? "SELL" : "BUY") as TradeType,
-    estimatedValue,
-    transactionSizeRange,
-    transactionDaysAgo,
-    disclosureDaysAgo,
-    source as DisclosureSource
-  ];
-}) as Array<[string, string, TradeType, number, string, number, number, DisclosureSource]>;
 
 export const mockCatalysts = [
   ["NVDA", "Next-generation AI accelerator ramp", "Product launch", 90, "Datacenter demand remains the central catalyst."],

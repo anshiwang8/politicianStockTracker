@@ -3,6 +3,7 @@ export type DashboardPayload = {
   trades: Trade[];
   watchlist: Array<{ id: string; alertMinScore: number; stock: Stock }>;
   lastUpdated: string;
+  lastPoliticianDataUpdated?: string | null;
 };
 
 export type Stock = {

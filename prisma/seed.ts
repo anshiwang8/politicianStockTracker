@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { calculateRanking } from "../src/lib/scoring";
-import { mockCatalysts, mockFundamentals, mockMacro, mockPoliticians, mockStocks, mockTrades } from "../src/lib/mock-data";
+import { mockCatalysts, mockFundamentals, mockMacro, mockPoliticians, mockStocks } from "../src/lib/mock-data";
 import { fetchMockPrices } from "../src/lib/services/price-service";
 
 const prisma = new PrismaClient();
@@ -58,30 +58,6 @@ async function main() {
   }
 
   const now = new Date();
-  for (const [politicianName, ticker, tradeType, estimatedValue, transactionSizeRange, txDays, disclosureDays, source] of mockTrades) {
-    const politician = await prisma.politician.findFirstOrThrow({ where: { name: politicianName } });
-    const stock = await prisma.stock.findUniqueOrThrow({ where: { ticker } });
-    const transactionDate = new Date(now.getTime() - txDays * 86_400_000);
-
-    await prisma.tradeDisclosure.upsert({
-      where: { id: `${politician.id}-${stock.id}-${tradeType}-${txDays}` },
-      update: {},
-      create: {
-        id: `${politician.id}-${stock.id}-${tradeType}-${txDays}`,
-        politicianId: politician.id,
-        stockId: stock.id,
-        ticker,
-        companyName: stock.companyName,
-        tradeType,
-        transactionDate,
-        disclosureDate: new Date(now.getTime() - disclosureDays * 86_400_000),
-        transactionSizeRange,
-        estimatedValue,
-        filingUrl: `https://example.com/public-disclosure/${source.toLowerCase()}/${ticker}`,
-        source
-      }
-    });
-  }
 
   for (const [ticker, title, category, score, notes] of mockCatalysts) {
     const stock = await prisma.stock.findUniqueOrThrow({ where: { ticker } });

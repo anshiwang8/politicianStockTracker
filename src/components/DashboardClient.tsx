@@ -72,6 +72,13 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <StockSearch />
 
+        <section className="rounded-lg border border-line bg-white px-4 py-3 text-sm shadow-panel">
+          <span className="text-slate-500">Last politician data updated: </span>
+          <span className="font-semibold">
+            {data.lastPoliticianDataUpdated ? new Date(data.lastPoliticianDataUpdated).toLocaleString() : "No live congressional trades loaded yet"}
+          </span>
+        </section>
+
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric label="Tracked tickers" value={data.rankings.length.toString()} />
           <Metric label="Recent disclosures" value={data.trades.length.toString()} />
