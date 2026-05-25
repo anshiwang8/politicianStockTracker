@@ -63,7 +63,7 @@ export function TradeTable({ trades }: { trades: Trade[] }) {
                   </td>
                   <td className="px-4 py-3 align-top">
                     <a className="text-accent hover:underline" href={trade.filingUrl} target="_blank">
-                      {trade.source}
+                      {formatSource(trade.source)}
                     </a>
                   </td>
                 </tr>
@@ -74,4 +74,9 @@ export function TradeTable({ trades }: { trades: Trade[] }) {
       </div>
     </div>
   );
+}
+
+function formatSource(source: string) {
+  if (source === "CAPITOL_TRADES") return "Capitol Trades";
+  return source.replaceAll("_", " ");
 }

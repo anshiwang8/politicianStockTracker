@@ -2,23 +2,24 @@ import { Prisma, type Chamber, type Party } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateRanking } from "@/lib/scoring";
 import { getScoreWeights } from "@/lib/settings";
-import { fetchRecentCongressionalTrades, type NormalizedCongressTrade } from "@/lib/services/finnhub-congress-service";
-import { fetchFinnhubProfile } from "@/lib/services/finnhub-stock-service";
+import { fetchRecentCapitolTrades, type NormalizedCapitolTrade } from "@/lib/services/capitol-trades-service";
+import { fetchFinnhubStockBundle, type FinnhubBundle } from "@/lib/services/finnhub-stock-service";
 
-const defaultSymbols = ["MSFT", "NVDA", "AAPL", "TSLA", "AMD", "PLTR", "JPM", "UNH", "RTX", "OKLO", "LLY"];
+const stockBundleCache = new Map<string, Promise<FinnhubBundle | null>>();
 
-export async function refreshPoliticianTrades(symbols = defaultSymbols) {
-  let trades: NormalizedCongressTrade[] = [];
+export async function refreshPoliticianTrades() {
+  let trades: NormalizedCapitolTrade[] = [];
+  stockBundleCache.clear();
 
   try {
-    trades = await fetchRecentCongressionalTrades(symbols);
+    trades = await fetchRecentCapitolTrades();
   } catch (error) {
-    console.error("[politician-refresh] Finnhub congressional fetch failed", error);
+    console.error("[politician-refresh] Capitol Trades fetch failed", error);
     return {
       fetched: 0,
       created: 0,
       updated: 0,
-      error: "Finnhub congressional trading endpoint unavailable on this API plan.",
+      error: "Capitol Trades data unavailable. Try refresh again later.",
       refreshedAt: new Date()
     };
   }
@@ -37,7 +38,8 @@ export async function refreshPoliticianTrades(symbols = defaultSymbols) {
 
   for (const trade of trades) {
     const politician = await upsertPolitician(trade.politicianName, trade.party, trade.chamber, trade.state);
-    const stock = await upsertStock(trade.ticker, trade.companyName);
+    const stock = await upsertStock(trade.ticker, trade.companyName, trade.sector);
+    await upsertStockFundamentals(stock.id, trade.ticker);
     const existing = await prisma.tradeDisclosure.findUnique({ where: { externalId: trade.externalId } });
 
     await prisma.tradeDisclosure.upsert({
@@ -99,14 +101,15 @@ async function upsertPolitician(name: string, party: Party, chamber: Chamber, st
   });
 }
 
-async function upsertStock(ticker: string, fallbackCompanyName: string) {
-  const profile = await fetchFinnhubProfile(ticker);
+async function upsertStock(ticker: string, fallbackCompanyName: string, fallbackSector?: string | null) {
+  const bundle = await getStockBundle(ticker);
+  const profile = bundle?.profile;
   return prisma.stock.upsert({
     where: { ticker },
     create: {
       ticker,
       companyName: profile?.name ?? fallbackCompanyName,
-      sector: "Unknown",
+      sector: fallbackSector ?? "Unknown",
       industry: profile?.finnhubIndustry ?? "Unknown",
       marketCap: profile?.marketCapitalization == null ? undefined : profile.marketCapitalization * 1_000_000
     },
@@ -118,8 +121,66 @@ async function upsertStock(ticker: string, fallbackCompanyName: string) {
   });
 }
 
+async function upsertStockFundamentals(stockId: string, ticker: string) {
+  const bundle = await getStockBundle(ticker);
+  const metric = bundle?.metrics?.metric;
+  if (!metric) return;
+
+  await prisma.stockFundamentals.upsert({
+    where: { stockId_fiscalYear: { stockId, fiscalYear: new Date().getFullYear() } },
+    create: {
+      stockId,
+      fiscalYear: new Date().getFullYear(),
+      revenueGrowthYoY: percent(metric.revenueGrowthTTMYoy ?? metric.revenueGrowthQuarterlyYoy),
+      revenueCagr3Y: percent(metric.revenueGrowth3Y),
+      netIncomeGrowthYoY: percent(metric.netIncomeGrowthTTMYoy ?? metric.netIncomeGrowthQuarterlyYoy),
+      epsGrowthYoY: percent(metric.epsGrowthTTMYoy ?? metric.epsGrowthQuarterlyYoy),
+      operatingIncomeGrowth: percent(metric.operatingIncomeGrowthTTMYoy),
+      grossMargin: percent(metric.grossMarginTTM),
+      operatingMargin: percent(metric.operatingMarginTTM),
+      netMargin: percent(metric.netProfitMarginTTM),
+      debtToEquity: number(metric.totalDebtToEquityAnnual ?? metric.totalDebtToEquityQuarterly),
+      freeCashFlow: number(metric.fcfPerShareTTM) * number(bundle.quote?.c),
+      operatingCashFlow: number(metric.operatingCashFlowPerShareTTM) * number(bundle.quote?.c),
+      roic: percent(metric.roicTTM),
+      priceToSales: number(metric.psTTM),
+      priceToEarnings: number(metric.peTTM),
+      forwardPriceToEarnings: number(metric.forwardPE),
+      pegRatio: number(metric.pegRatio),
+      rdToRevenue: percent(metric.rAndDToRevenueTTM)
+    },
+    update: {
+      revenueGrowthYoY: percent(metric.revenueGrowthTTMYoy ?? metric.revenueGrowthQuarterlyYoy),
+      revenueCagr3Y: percent(metric.revenueGrowth3Y),
+      netIncomeGrowthYoY: percent(metric.netIncomeGrowthTTMYoy ?? metric.netIncomeGrowthQuarterlyYoy),
+      epsGrowthYoY: percent(metric.epsGrowthTTMYoy ?? metric.epsGrowthQuarterlyYoy),
+      operatingIncomeGrowth: percent(metric.operatingIncomeGrowthTTMYoy),
+      grossMargin: percent(metric.grossMarginTTM),
+      operatingMargin: percent(metric.operatingMarginTTM),
+      netMargin: percent(metric.netProfitMarginTTM),
+      debtToEquity: number(metric.totalDebtToEquityAnnual ?? metric.totalDebtToEquityQuarterly),
+      freeCashFlow: number(metric.fcfPerShareTTM) * number(bundle.quote?.c),
+      operatingCashFlow: number(metric.operatingCashFlowPerShareTTM) * number(bundle.quote?.c),
+      roic: percent(metric.roicTTM),
+      priceToSales: number(metric.psTTM),
+      priceToEarnings: number(metric.peTTM),
+      forwardPriceToEarnings: number(metric.forwardPE),
+      pegRatio: number(metric.pegRatio),
+      rdToRevenue: percent(metric.rAndDToRevenueTTM)
+    }
+  });
+}
+
+function getStockBundle(ticker: string) {
+  const normalized = ticker.toUpperCase();
+  if (!stockBundleCache.has(normalized)) {
+    stockBundleCache.set(normalized, fetchFinnhubStockBundle(normalized));
+  }
+  return stockBundleCache.get(normalized)!;
+}
+
 async function refreshRankingScores() {
-  const stocks = await prisma.stock.findMany();
+  const stocks = await prisma.stock.findMany({ where: { disclosures: { some: {} } } });
   for (const stock of stocks) {
     const [trades, fundamentals, catalysts, macro, manualAdjustment] = await Promise.all([
       prisma.tradeDisclosure.findMany({ where: { stockId: stock.id }, include: { politician: true } }),
@@ -141,6 +202,16 @@ async function refreshRankingScores() {
 function midpoint(low: number | null, high: number | null) {
   if (low != null && high != null) return (low + high) / 2;
   return low ?? high ?? 0;
+}
+
+function number(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function percent(value: unknown) {
+  const parsed = number(value);
+  return Math.abs(parsed) > 1 ? parsed / 100 : parsed;
 }
 
 function toJson(value: unknown): Prisma.InputJsonValue {

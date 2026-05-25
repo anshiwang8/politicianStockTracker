@@ -61,7 +61,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     if (response.ok) {
       const result = await response.json();
       if (result.error) {
-        setRefreshStatus(`${result.error} Run npm.cmd run refresh:politician-trades after enabling access.`);
+        setRefreshStatus(`${result.error} Run npm.cmd run refresh:politician-trades in PowerShell.`);
       } else {
         setRefreshStatus(`Politician trades refreshed. Fetched ${result.disclosureCount ?? 0}, created ${result.created ?? 0}, updated ${result.updated ?? 0}.`);
       }

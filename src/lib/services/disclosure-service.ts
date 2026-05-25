@@ -1,1 +1,1 @@
-export { fetchRecentCongressionalTrades as fetchPublicDisclosureRecords } from "@/lib/services/finnhub-congress-service";
+export { fetchRecentCapitolTrades as fetchPublicDisclosureRecords } from "@/lib/services/capitol-trades-service";

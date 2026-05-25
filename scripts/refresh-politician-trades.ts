@@ -1,8 +1,6 @@
 import { refreshPoliticianTrades } from "../src/lib/politician-trade-refresh";
 
-const symbols = process.argv.slice(2).length ? process.argv.slice(2) : undefined;
-
-refreshPoliticianTrades(symbols)
+refreshPoliticianTrades()
   .then((result) => {
     console.log(JSON.stringify(result, null, 2));
   })

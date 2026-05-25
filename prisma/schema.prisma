@@ -30,6 +30,7 @@ enum DisclosureSource {
   HOUSE
   SENATE
   STOCK_ACT_API
+  CAPITOL_TRADES
   MANUAL
 }
 
